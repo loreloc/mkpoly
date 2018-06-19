@@ -10,25 +10,27 @@ int main(int argc, char* argv[])
 	if(argc < 5)
 	{
 		printf("Usage: ");
-		printf("makepoly <in-file> <enc-beg-offset> <enc-end-offset> <dec-offset>\n");
-		printf("\t<in-file>        the executable file to make polymorphic\n");
-		printf("\t<enc-beg-offset> the begin offset of the section to encrypt\n");
-		printf("\t<enc-end-offset> the end offset of the section to encrypt\n");
-		printf("\t<dec-offset>     the offset of the section in which to place the decrypt function\n");
+		printf("makepoly <exe-filename> <enc-offset> <enc-size> <dec-offset>\n");
+		printf("\n");
+		printf("<exe-filename> the filename of the executable to make polymorphic\n");
+		printf("<enc-offset>   the offset of the section to encrypt\n");
+		printf("<enc-size>     the size of the section to encrypt\n");
+		printf("<dec-offset>   the offset in which to place the decrypt function\n");
+		printf("\n");
 		return -1;
 	}
 
-	// get the program arguments
-	const char* exe_filename    = argv[1];
-	const size_t enc_beg_offset = strtol(argv[2], NULL, 16);
-	const size_t enc_end_offset = strtol(argv[3], NULL, 16);
-	const size_t dec_offset     = strtol(argv[4], NULL, 16);
+	// get the arguments
+	const char* exe_filename = argv[1];
+	const size_t enc_offset  = strtol(argv[2], NULL, 16);
+	const size_t enc_size    = strtol(argv[3], NULL, 16);
+	const size_t dec_offset  = strtol(argv[4], NULL, 16);
 
 	// open the executable file
 	FILE* exe_file = fopen(exe_filename, "rb");
 	if(!exe_file)
 	{
-		printf("ERROR: failed to open %s\n", exe_filename);
+		printf("Failed to open %s\n", exe_filename);
 		return 1;
 	}
 
@@ -43,7 +45,7 @@ int main(int argc, char* argv[])
 	if(!exe_data)
 	{
 		fclose(exe_file);
-		printf("ERROR: data allocation failed\n");
+		printf("Executable data allocation failed\n");
 		return 2;
 	}
 
@@ -52,45 +54,40 @@ int main(int argc, char* argv[])
 	{
 		fclose(exe_file);
 		free(exe_data);
-		printf("ERROR: executable file read failed\n");
+		printf("Executable file read failed\n");
 		return 3;
 	}
 
 	// close the file
 	fclose(exe_file);
 
-	// check the offsets of the section to encrypt
-	if(enc_end_offset <= enc_beg_offset || enc_beg_offset >= exe_size || enc_end_offset >= exe_size)
+	// check the input parameters
+	if(enc_offset >= exe_size)
 	{
 		free(exe_data);
-		printf("ERROR: invalid offsets of the section to encrypt\n");
+		printf("The offset of the section to encrypt is invalid\n");
 		return 4;
 	}
 
-	// calculate the size of the section to encrypt
-	size_t enc_size = enc_end_offset - enc_beg_offset;
-
-	// check the size of the section to encrypt
-	if(enc_size == 0 || (enc_size & 0x0F) != 0)
-	{
-		free(exe_data);
-		printf("ERROR: the section to encrypt size must be a multiple of 16\n");
-		return 5;
-	}
-
-	// check the offset of the section in which to place the decryption function
 	if(dec_offset >= exe_size)
 	{
 		free(exe_data);
-		printf("ERROR: decryption function offset overflow\n");
+		printf("The offset in which to place the decrypt function is invalid\n");
+		return 5;
+	}
+
+	if(enc_size == 0 || (enc_size & 0x0F) != 0)
+	{
+		free(exe_data);
+		printf("The section to encrypt size must be a multiple of 16\n");
 		return 6;
 	}
 
 	// call the polymorphic engine
-	if(poly_engine(exe_data, enc_beg_offset, enc_size, dec_offset) != 0)
+	if(poly_engine(exe_data, enc_offset, enc_size, dec_offset) != 0)
 	{
 		free(exe_data);
-		printf("ERROR: an error occured in the polymorphic engine\n");
+		printf("An error occured in the polymorphic engine\n");
 		return 7;
 	}
 
@@ -103,7 +100,7 @@ int main(int argc, char* argv[])
 	if(!out_file)
 	{
 		free(exe_data);
-		printf("ERROR: failed to open %s\n", out_filename);
+		printf("failed to open %s\n", out_filename);
 		return 8;
 	}
 
@@ -111,7 +108,7 @@ int main(int argc, char* argv[])
 	if(!fwrite(exe_data, exe_size, 1, out_file))
 	{
 		free(exe_data);
-		printf("ERROR: failed to write into %s\n", out_filename);
+		printf("failed to write into %s\n", out_filename);
 		return 9;
 	}
 

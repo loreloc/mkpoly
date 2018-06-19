@@ -6,7 +6,7 @@
 ## platform
 
 The target platform is the Linux operating system.  
-Additionally due to the _rdrand_ instruction, **makepoly** can be executed only on a x86-64 cpu that supports the _rdrand_ extension.
+Furthermore, due to the _rdrand_ instruction, **makepoly** can be executed only on a x86-64 cpu that supports the _rdrand_ extension.
 
 ## installation
 
@@ -22,29 +22,37 @@ Additionaly, build the example with:
 make example
 ```
 
+## usage
+
+In order to use **makepoly** , the target executable must contain a **DECRYPTOR_SECTION** (see _makepoly.inc_ and _example.asm_) that is a piece of code that contains the function used by the program to decrypt itself. Also, the section to encrypt must be aligned to 16 bytes and its size must be a multiple of 16. The macro _DECRYPTOR_SECTION_ defines two local labels: _.makepoly_loop_ and _.makepoly_func_ that are, respectively, the begin of the decryptor loop and the decryption function.  
+
+**makepoly** takes 4 input parameters:
+- The filename of the executable to make polymorphic
+- The offset in the executable file of the section to encrypt
+- The size of the section to encrypt (must be a multiple of 16)
+- The offset in the executable file in which to place the decrypt function
+
 ## example
+
+Executing the following commands we know the offset of the section to encrypt (_hello_), the size of the section to encrypt (the difference between the offsets of the labels _hello.end_ and _hello_), and the offset in which to place the decrypt function (_decrypt.makepoly_func_).
 
 ```
 $ objdump -h example | grep -E ".text"
-Idx Name          Size      VMA               LMA               File off  Algn
  12 .text         00000311  0000000000400530  0000000000400530  00000530  2**4
 ```
 
 ```
 $ objdump -x example | grep -E "hello|decrypt"
-SYMBOL TABLE:
 000000000040062b l       .text	0000000000000000              decrypt
-000000000040067d l       .text	0000000000000000              decrypt.dec_loop
-0000000000400688 l       .text	0000000000000000              decrypt.dec_func
+000000000040067d l       .text	0000000000000000              decrypt.makepoly_loop
+0000000000400688 l       .text	0000000000000000              decrypt.makepoly_func
 00000000004007c0 l       .text	0000000000000000              hello
 00000000004007d0 l       .text	0000000000000000              hello.end
 ```
 
-Executing the precedent commands we now know the offsets of the begin and the end of the section to encrypt (_hello_ and _hello.end_) and the offset of the section in which to place the decrypt function (_decrypt.dec_func_). Now we can make polymorphic the program _example_.
+This will create a random encrypted version of the program _example_ called _example.poly_.
 
 ```
-$ makepoly example 7c0 7d0 688
+$ makepoly example 7c0 10 688
 ```
-
-This will create an encrypted version of the program _example_ called _example.poly_.
 
