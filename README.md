@@ -24,13 +24,17 @@ make example
 
 ## usage
 
-In order to use **makepoly** , the target executable must contain a **DECRYPTOR_SECTION** (see _makepoly.inc_ and _example.asm_) that is a piece of code that contains the function used by the program to decrypt itself. Also, the section to encrypt must be aligned to 16 bytes and its size must be a multiple of 16. The macro _DECRYPTOR_SECTION_ defines two local labels: _.makepoly_loop_ and _.makepoly_func_ that are, respectively, the begin of the decryptor loop and the decryption function.  
+In order to use **makepoly** , the target executable must contain a _DECRYPTOR_SECTION_ (see _makepoly.inc_ and _example.asm_) that is a piece of code that contains the function used by the program to decrypt itself. Also, the section to encrypt must be aligned to 16 bytes and its size must be a multiple of 16. The macro _DECRYPTOR_SECTION_ defines two local labels: _.makepoly_loop_ and _.makepoly_func_ that are, respectively, the begin of the decryptor loop and the begin of the decryption function.  
 
 **makepoly** takes 4 input parameters:
 - The filename of the executable to make polymorphic
 - The offset in the executable file of the section to encrypt
-- The size of the section to encrypt (must be a multiple of 16)
+- The size of the section to encrypt
 - The offset in the executable file in which to place the decrypt function
+
+Note: All the integer parameters must be passed in the hexadecimal format.  
+
+When executed, **makepoly** randomly generates the encryption and the decryption functions. The encryption function is used to encrypt the section specified by the user. The decryption function is placed in the _DECRYPTOR_SECTION_ at the offset specified by the user. So, when the output executable is executed, it will decrypt parts of itself executing the _DECRYPTOR_SECTION_.
 
 ## example
 
