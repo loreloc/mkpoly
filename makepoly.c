@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <time.h>
 
 extern int poly_engine(char* exe_data, size_t enc_beg_offset, size_t enc_size, size_t dec_offset);
 
@@ -20,6 +21,9 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
+	// seed the random number generator
+	srand(time(NULL));
+
 	// get the arguments
 	const char* exe_filename = argv[1];
 	const size_t enc_offset  = strtol(argv[2], NULL, 16);
@@ -31,7 +35,7 @@ int main(int argc, char* argv[])
 	if(!exe_file)
 	{
 		printf("Failed to open %s\n", exe_filename);
-		return 1;
+		return -1;
 	}
 
 	// get the size of the executable file
@@ -46,16 +50,15 @@ int main(int argc, char* argv[])
 	{
 		fclose(exe_file);
 		printf("Executable data allocation failed\n");
-		return 2;
+		return 1;
 	}
 
 	// read the entire executable file
 	if(!fread(exe_data, exe_size, 1, exe_file))
 	{
 		fclose(exe_file);
-		free(exe_data);
 		printf("Executable file read failed\n");
-		return 3;
+		goto quit;
 	}
 
 	// close the file
@@ -64,31 +67,27 @@ int main(int argc, char* argv[])
 	// check the input parameters
 	if(enc_offset >= exe_size)
 	{
-		free(exe_data);
 		printf("The offset of the section to encrypt is invalid\n");
-		return 4;
+		goto quit;
 	}
 
 	if(dec_offset >= exe_size)
 	{
-		free(exe_data);
 		printf("The offset in which to place the decrypt function is invalid\n");
-		return 5;
+		goto quit;
 	}
 
 	if(enc_size == 0 || (enc_size & 0x0F) != 0)
 	{
-		free(exe_data);
 		printf("The section to encrypt size must be a multiple of 16\n");
-		return 6;
+		goto quit;
 	}
 
 	// call the polymorphic engine
 	if(poly_engine(exe_data, enc_offset, enc_size, dec_offset) != 0)
 	{
-		free(exe_data);
 		printf("An error occured in the polymorphic engine\n");
-		return 7;
+		goto quit;
 	}
 
 	// initialize the output filename
@@ -99,21 +98,18 @@ int main(int argc, char* argv[])
 	FILE* out_file = fopen(out_filename, "wb");
 	if(!out_file)
 	{
-		free(exe_data);
 		printf("failed to open %s\n", out_filename);
-		return 8;
+		goto quit;
 	}
 
 	// write the modified executable data
 	if(!fwrite(exe_data, exe_size, 1, out_file))
 	{
-		free(exe_data);
 		printf("failed to write into %s\n", out_filename);
-		return 9;
 	}
 
+quit:
 	free(exe_data);
-
 	return 0;
 }
 

@@ -5,8 +5,7 @@
 
 ## platform
 
-The target platform is the Linux operating system.  
-Furthermore, due to the _rdrand_ instruction, **makepoly** can be executed only on a x86-64 cpu that supports the _rdrand_ extension.
+The target platform is the Linux operating system.
 
 ## installation
 

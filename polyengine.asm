@@ -3,6 +3,8 @@
 
 %include "makepoly.inc"
 
+extern rand
+
 ; prefixes and opcodes of 8 invertible instructions:
 ;   instructions |   inverted instructions
 ; - add reg, reg | - sub reg, reg
@@ -66,6 +68,10 @@ poly_engine:
 	mov     rbp, rsp
 	and     rsp, -0x10
 	sub     rsp, 0x30
+	push    r12
+	push    r13
+	push    r14
+	push    r15
 	; save the input arguments
 	mov     [rbp-0x30], rdi
 	mov     [rbp-0x28], rsi
@@ -91,17 +97,17 @@ poly_engine:
 	test    rax, rax
 	jnz     .quit
 	; generate the encryption and decryption functions
-	lea     r8, [rel mod_reg_rm]
-	mov     r9d, 0xC
-	mov     rdi, .encrypt_func
-	lea     rbx, [rdi+POLY_FUNC_SIZE-0x6]
-	mov     rsi, [rbp-0x30]
-	add     rsi, [rbp-0x18]
-	add     rsi, POLY_FUNC_SIZE
+	lea     r14, [rel mod_reg_rm]
+	mov     r15d, 0xC
+	mov     r12, .encrypt_func
+	lea     rbx, [r12+POLY_FUNC_SIZE-0x6]
+	mov     r13, [rbp-0x30]
+	add     r13, [rbp-0x18]
+	add     r13, POLY_FUNC_SIZE
 .encrypt_func_gen_loop:
-	cmp     rdi, rbx
+	cmp     r12, rbx
 	ja      .encrypt_func_gen_end
-	rdrand  eax
+	call    rand
 	and     eax, 0x7
 	jmp     [.instr_jump_table+rax*8]
 	; the jump table of the possible instructions
@@ -115,121 +121,123 @@ poly_engine:
 	                   dq .rol_reg_i8,
 	                   dq .ror_reg_i8
 .add_reg_reg:
-	sub     rsi, 0x2
-	rdrand  eax
+	sub     r13, 0x2
+	call    rand
 	xor     edx, edx
-	div     r9d
-	mov     al, [r8+rdx]
+	div     r15d
+	mov     al, [r14+rdx]
 	mov     dh, al
 	mov     ah, OPCODE_ADD_RM
 	mov     dl, OPCODE_SUB_RM
 	xchg    al, ah
-	mov     [rdi], ax
-	mov     [rsi], dx
-	add     rdi, 0x2
+	mov     [r12], ax
+	mov     [r13], dx
+	add     r12, 0x2
 	jmp     .encrypt_func_gen_loop
 .sub_reg_reg:
-	sub     rsi, 0x2
-	rdrand  eax
+	sub     r13, 0x2
+	call    rand
 	xor     edx, edx
-	div     r9d
-	mov     al, [r8+rdx]
+	div     r15d
+	mov     al, [r14+rdx]
 	mov     dh, al
 	mov     ah, OPCODE_SUB_RM
 	mov     dl, OPCODE_ADD_RM
 	xchg    al, ah
-	mov     [rdi], ax
-	mov     [rsi], dx
-	add     rdi, 0x2
+	mov     [r12], ax
+	mov     [r13], dx
+	add     r12, 0x2
 	jmp     .encrypt_func_gen_loop
 .xor_reg_reg:
-	sub     rsi, 0x2
-	rdrand  eax
+	sub     r13, 0x2
+	call    rand
 	xor     edx, edx
-	div     r9d
-	mov     al, [r8+rdx]
+	div     r15d
+	mov     al, [r14+rdx]
 	mov     ah, OPCODE_XOR_RM
 	xchg    al, ah
-	mov     [rdi], ax
-	mov     [rsi], ax
-	add     rdi, 0x2
+	mov     [r12], ax
+	mov     [r13], ax
+	add     r12, 0x2
 	jmp     .encrypt_func_gen_loop
 .add_reg_i32:
-	sub     rsi, 0x6
-	rdrand  ax
+	sub     r13, 0x6
+	call    rand
+	mov     ecx, eax
 	mov     al, PREFIX_ASX_IMM
 	and     ah, 0x3
 	mov     dx, ax
 	or      ah, OPCODE_ADD_RI
 	or      dh, OPCODE_SUB_RI
-	rdrand  ecx
-	mov     [rdi    ], ax
-	mov     [rsi    ], dx
-	mov     [rdi+0x2], ecx
-	mov     [rsi+0x2], ecx
-	add     rdi, 0x6
+	mov     [r12    ], ax
+	mov     [r13    ], dx
+	mov     [r12+0x2], ecx
+	mov     [r13+0x2], ecx
+	add     r12, 0x6
 	jmp     .encrypt_func_gen_loop
 .sub_reg_i32:
-	sub     rsi, 0x6
-	rdrand  ax
+	sub     r13, 0x6
+	call    rand
+	mov     ecx, eax
 	mov     al, PREFIX_ASX_IMM
 	and     ah, 0x3
 	mov     dx, ax
 	or      ah, OPCODE_SUB_RI
 	or      dh, OPCODE_ADD_RI
-	rdrand  ecx
-	mov     [rdi    ], ax
-	mov     [rsi    ], dx
-	mov     [rdi+0x2], ecx
-	mov     [rsi+0x2], ecx
-	add     rdi, 0x6
+	mov     [r12    ], ax
+	mov     [r13    ], dx
+	mov     [r12+0x2], ecx
+	mov     [r13+0x2], ecx
+	add     r12, 0x6
 	jmp     .encrypt_func_gen_loop
 .xor_reg_i32:
-	sub     rsi, 0x6
-	rdrand  ax
+	sub     r13, 0x6
+	call    rand
+	mov     ecx, eax
 	mov     al, PREFIX_ASX_IMM
 	and     ah, 0x3
 	or      ah, OPCODE_XOR_RI
-	rdrand  ecx
-	mov     [rdi    ], ax
-	mov     [rsi    ], ax
-	mov     [rdi+0x2], ecx
-	mov     [rsi+0x2], ecx
-	add     rdi, 0x6
+	mov     [r12    ], ax
+	mov     [r13    ], ax
+	mov     [r12+0x2], ecx
+	mov     [r13+0x2], ecx
+	add     r12, 0x6
 	jmp     .encrypt_func_gen_loop
 .rol_reg_i8:
-	sub     rsi, 0x3
-	rdrand  ax
+	sub     r13, 0x3
+	call    rand
+	mov     ecx, eax
+	shr     ecx, 16
 	mov     al, PREFIX_ROT_IMM
 	and     ah, 0x3
 	mov     dx, ax
 	or      ah, OPCODE_ROL_RI
 	or      dh, OPCODE_ROR_RI
-	rdrand  cx
 	and     cl, 0x1F
 	or      cl, 0x01
-	mov     [rdi    ], ax
-	mov     [rsi    ], dx
-	mov     [rdi+0x2], cl
-	mov     [rsi+0x2], cl
-	add     rdi, 0x3
+	mov     [r12    ], ax
+	mov     [r13    ], dx
+	mov     [r12+0x2], cl
+	mov     [r13+0x2], cl
+	add     r12, 0x3
 	jmp     .encrypt_func_gen_loop
 .ror_reg_i8:
-	sub     rsi, 0x3
-	rdrand  ax
+	sub     r13, 0x3
+	call    rand
+	mov     ecx, eax
+	shr     ecx, 16
 	mov     al, PREFIX_ROT_IMM
 	and     ah, 0x3
 	mov     dx, ax
 	or      ah, OPCODE_ROR_RI
 	or      dh, OPCODE_ROL_RI
-	rdrand  cx
 	and     cl, 0x1F
 	or      cl, 0x01
-	mov     [rdi    ], ax
-	mov     [rsi    ], dx
-	mov     [rdi+0x2], cl
-	mov     [rsi+0x2], cl
-	add     rdi, 0x3
+	mov     [r12    ], ax
+	mov     [r13    ], dx
+	mov     [r12+0x2], cl
+	mov     [r13+0x2], cl
+	add     r12, 0x3
 	jmp     .encrypt_func_gen_loop
 .encrypt_func_gen_end:
 	; protect the encryption function buffer from write operations
@@ -260,6 +268,10 @@ poly_engine:
 	jne     .encrypt_loop
 	xor     rax, rax
 .quit:
+	pop     r15
+	pop     r14
+	pop     r13
+	pop     r12
 	mov     rsp, rbp
 	pop     rbp
 	ret
