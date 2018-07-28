@@ -15,6 +15,10 @@ extern rand
 ; - xor reg, i32 | - xor reg, i32
 ; - rol reg, i8  | - ror reg, i8
 ; - ror reg, i8  | - rol reg, i8
+; - inc reg
+; - dec reg
+; - not reg
+; - neg reg
 %define OPCODE_ADD_RM  0x01
 %define OPCODE_SUB_RM  0x29
 %define OPCODE_XOR_RM  0x31
@@ -25,6 +29,12 @@ extern rand
 %define PREFIX_ROT_IMM 0xC1
 %define OPCODE_ROL_RI  0xC0
 %define OPCODE_ROR_RI  0xC8
+%define PREFIX_INC_DEC 0xFF
+%define OPCODE_INC_R   0xC0
+%define OPCODE_DEC_R   0xC8
+%define PREFIX_NOT_NEG 0xF7
+%define OPCODE_NOT_R   0xD0
+%define OPCODE_NEG_R   0xD8
 
 global poly_engine
 
@@ -108,8 +118,9 @@ poly_engine:
 	cmp     r12, rbx
 	ja      .encrypt_func_gen_end
 	call    rand
-	and     eax, 0x7
-	jmp     [.instr_jump_table+rax*8]
+	xor     edx, edx
+	div     r15d
+	jmp     [.instr_jump_table+rdx*8]
 	; the jump table of the possible instructions
 	align 8
 	.instr_jump_table: dq .add_reg_reg,
@@ -119,7 +130,11 @@ poly_engine:
 	                   dq .sub_reg_i32,
 	                   dq .xor_reg_i32,
 	                   dq .rol_reg_i8,
-	                   dq .ror_reg_i8
+	                   dq .ror_reg_i8,
+	                   dq .inc_reg,
+	                   dq .dec_reg,
+	                   dq .not_reg,
+	                   dq .neg_reg
 .add_reg_reg:
 	sub     r13, 0x2
 	call    rand
@@ -238,6 +253,50 @@ poly_engine:
 	mov     [r12+0x2], cl
 	mov     [r13+0x2], cl
 	add     r12, 0x3
+	jmp     .encrypt_func_gen_loop
+.inc_reg:
+	sub     r13, 0x2
+	call    rand
+	mov     al, PREFIX_INC_DEC
+	and     ah, 0x3
+	mov     dx, ax
+	or      ah, OPCODE_INC_R
+	or      dh, OPCODE_DEC_R
+	mov     [r12], ax
+	mov     [r13], dx
+	add     r12, 0x2
+	jmp     .encrypt_func_gen_loop
+.dec_reg:
+	sub     r13, 0x2
+	call    rand
+	mov     al, PREFIX_INC_DEC
+	and     ah, 0x3
+	mov     dx, ax
+	or      ah, OPCODE_DEC_R
+	or      dh, OPCODE_INC_R
+	mov     [r12], ax
+	mov     [r13], dx
+	add     r12, 0x2
+	jmp     .encrypt_func_gen_loop
+.not_reg:
+	sub     r13, 0x2
+	call    rand
+	mov     al, PREFIX_NOT_NEG
+	and     ah, 0x3
+	or      ah, OPCODE_NOT_R
+	mov     [r12], ax
+	mov     [r13], ax
+	add     r12, 0x2
+	jmp     .encrypt_func_gen_loop
+.neg_reg:
+	sub     r13, 0x2
+	call    rand
+	mov     al, PREFIX_NOT_NEG
+	and     ah, 0x3
+	or      ah, OPCODE_NEG_R
+	mov     [r12], ax
+	mov     [r13], ax
+	add     r12, 0x2
 	jmp     .encrypt_func_gen_loop
 .encrypt_func_gen_end:
 	; protect the encryption function buffer from write operations
