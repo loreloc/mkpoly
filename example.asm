@@ -1,7 +1,7 @@
 
 cpu x86-64
 
-%include "makepoly.inc"
+%include "mkpoly.inc"
 
 extern puts
 
@@ -15,6 +15,7 @@ section .text
 main:
 	call    decrypt
 	call    hello
+	xor     rax, rax
 	ret
 
 decrypt:
