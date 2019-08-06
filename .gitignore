@@ -1,5 +1,4 @@
 *.o
-makepoly
+mkpoly
 example
-example.poly
-
+example.crypt
