@@ -26,15 +26,13 @@ gcc -no-pie example.o -o example
 
 In order to use **mkpoly**, the target executable must contains a _DECRYPTOR_SECTION_ (see _mkpoly.inc_ and _example.asm_) that is a piece of code that contains the function used by the program to decrypt itself. Also, the section to encrypt must be aligned to 16 bytes and its size must be a multiple of 16. The macro _DECRYPTOR_SECTION_ defines two local labels: _.mkpoly_loop_ and _.mkpoly_func_ that are, respectively, the begin of the decryptor loop and the begin of the decryption function.  
 
-**mkpoly** takes 4 input parameters (all in hexadecimal):
+**mkpoly** takes 4 input parameters (all in the hexadecimal format):
 - The filename of the binary to make polymorphic
 - The offset in the binary file of the section to encrypt
 - The size of the section to encrypt
-- The offset in the binary file in which to place the decrypt function
+- The offset in the binary file where to place the decrypt function
 
-Note: All the integer parameters must be passed in the hexadecimal format.  
-
-When executed, **makepoly** randomly generates the encryption and the decryption functions. The encryption function is used to encrypt the section specified by the user. The decryption function is placed in the _DECRYPTOR_SECTION_ at the offset specified by the user. So, when the output binary is executed, it will decrypt parts of itself executing the _DECRYPTOR_SECTION_.
+When executed, the polymorphic engine randomly generates the encryption and the decryption functions. The encryption function is used to encrypt the section specified by the user. The decryption function is placed in the _DECRYPTOR_SECTION_ at the offset specified by the user. So, when the output binary is executed, it will decrypt parts of itself executing the _DECRYPTOR_SECTION_.
 
 ## example
 
@@ -49,9 +47,9 @@ $ objdump -h example | grep -E ".text"
 $ objdump -x example | grep -E "hello|decrypt"
 000000000040115e l       .text	0000000000000000              decrypt
 00000000004011b0 l       .text	0000000000000000              decrypt.mkpoly_loop
-0000000000**4011bb** l       .text	0000000000000000              decrypt.mkpoly_func
-0000000000**4012f0** l       .text	0000000000000000              hello
-0000000000**401300** l       .text	0000000000000000              hello.end
+00000000004011bb l       .text	0000000000000000              decrypt.mkpoly_func
+00000000004012f0 l       .text	0000000000000000              hello
+0000000000401300 l       .text	0000000000000000              hello.end
 ```
 
 This will create a random encrypted version of the program _example_ called _example.crypt_.
