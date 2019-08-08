@@ -1,6 +1,37 @@
 
 %include "mkpoly.inc"
 
+; prefixes and opcodes of 8 invertible instructions:
+;   instructions |   inverted instructions
+; - add reg, reg | - sub reg, reg
+; - sub reg, reg | - add reg, reg
+; - xor reg, reg | - xor reg, reg
+; - add reg, i32 | - sub reg, i32
+; - sub reg, i32 | - add reg, i32
+; - xor reg, i32 | - xor reg, i32
+; - rol reg, i8  | - ror reg, i8
+; - ror reg, i8  | - rol reg, i8
+; - inc reg
+; - dec reg
+; - not reg
+; - neg reg
+%define OPCODE_ADD_RM  0x01
+%define OPCODE_SUB_RM  0x29
+%define OPCODE_XOR_RM  0x31
+%define PREFIX_ASX_IMM 0x81
+%define OPCODE_ADD_RI  0xC0
+%define OPCODE_SUB_RI  0xE8
+%define OPCODE_XOR_RI  0xF0
+%define PREFIX_ROT_IMM 0xC1
+%define OPCODE_ROL_RI  0xC0
+%define OPCODE_ROR_RI  0xC8
+%define PREFIX_INC_DEC 0xFF
+%define OPCODE_INC_R   0xC0
+%define OPCODE_DEC_R   0xC8
+%define PREFIX_NOT_NEG 0xF7
+%define OPCODE_NOT_R   0xD0
+%define OPCODE_NEG_R   0xD8
+
 global polyeng
 
 section .data
@@ -31,15 +62,6 @@ section .data
 
 section .text
 
-; generate a random 32-bit number
-;
-; [out] eax : a random number
-;
-align 16
-rand32:
-	rdrand  eax
-	ret
-
 ; the polymorphic engine
 ;
 ; [in]  rdi : the binary data to modify
@@ -69,7 +91,7 @@ polyeng:
 	mov     rcx, rax
 	sub     rcx, 1
 	mov     rdi, .crypt_func
-	mov     rsi, POLY_FUNC_SIZE
+	mov     rsi, MKPOLY_FUNC_SIZE
 	mov     rax, rdi
 	add     rsi, rcx
 	not     rcx
@@ -87,14 +109,14 @@ polyeng:
 	lea     r14, [rel mod_reg_rm]
 	mov     r15d, 0xC
 	mov     r12, .crypt_func
-	lea     rbx, [r12+POLY_FUNC_SIZE-0x6]
+	lea     rbx, [r12+MKPOLY_FUNC_SIZE-0x6]
 	mov     r13, [rbp-0x30]
 	add     r13, [rbp-0x18]
-	add     r13, POLY_FUNC_SIZE
+	add     r13, MKPOLY_FUNC_SIZE
 .cryptor_gen_loop:
 	cmp     r12, rbx
 	ja      .cryptor_gen_end
-	call    rand32
+	rdrand  eax
 	xor     edx, edx
 	div     r15d
 	jmp     [.instr_jmp_table+rdx*8]
@@ -112,7 +134,7 @@ polyeng:
 	                  dq .neg_reg
 .add_reg_reg:
 	sub     r13, 0x2
-	call    rand32
+	rdrand  eax
 	xor     edx, edx
 	div     r15d
 	mov     al, [r14+rdx]
@@ -126,7 +148,7 @@ polyeng:
 	jmp     .cryptor_gen_loop
 .sub_reg_reg:
 	sub     r13, 0x2
-	call    rand32
+	rdrand  eax
 	xor     edx, edx
 	div     r15d
 	mov     al, [r14+rdx]
@@ -140,7 +162,7 @@ polyeng:
 	jmp     .cryptor_gen_loop
 .xor_reg_reg:
 	sub     r13, 0x2
-	call    rand32
+	rdrand  eax
 	xor     edx, edx
 	div     r15d
 	mov     al, [r14+rdx]
@@ -152,8 +174,7 @@ polyeng:
 	jmp     .cryptor_gen_loop
 .add_reg_i32:
 	sub     r13, 0x6
-	call    rand32
-	mov     ecx, eax
+	rdrand  ecx
 	mov     al, PREFIX_ASX_IMM
 	and     ah, 0x3
 	mov     dx, ax
@@ -167,8 +188,7 @@ polyeng:
 	jmp     .cryptor_gen_loop
 .sub_reg_i32:
 	sub     r13, 0x6
-	call    rand32
-	mov     ecx, eax
+	rdrand  ecx
 	mov     al, PREFIX_ASX_IMM
 	and     ah, 0x3
 	mov     dx, ax
@@ -182,8 +202,7 @@ polyeng:
 	jmp     .cryptor_gen_loop
 .xor_reg_i32:
 	sub     r13, 0x6
-	call    rand32
-	mov     ecx, eax
+	rdrand  ecx
 	mov     al, PREFIX_ASX_IMM
 	and     ah, 0x3
 	or      ah, OPCODE_XOR_RI
@@ -195,8 +214,7 @@ polyeng:
 	jmp     .cryptor_gen_loop
 .rol_reg_i8:
 	sub     r13, 0x3
-	call    rand32
-	mov     ecx, eax
+	rdrand  ecx
 	shr     ecx, 16
 	mov     al, PREFIX_ROT_IMM
 	and     ah, 0x3
@@ -213,8 +231,7 @@ polyeng:
 	jmp     .cryptor_gen_loop
 .ror_reg_i8:
 	sub     r13, 0x3
-	call    rand32
-	mov     ecx, eax
+	rdrand  ecx
 	shr     ecx, 16
 	mov     al, PREFIX_ROT_IMM
 	and     ah, 0x3
@@ -231,7 +248,7 @@ polyeng:
 	jmp     .cryptor_gen_loop
 .inc_reg:
 	sub     r13, 0x2
-	call    rand32
+	rdrand  eax
 	mov     al, PREFIX_INC_DEC
 	and     ah, 0x3
 	mov     dx, ax
@@ -243,7 +260,7 @@ polyeng:
 	jmp     .cryptor_gen_loop
 .dec_reg:
 	sub     r13, 0x2
-	call    rand32
+	rdrand  eax
 	mov     al, PREFIX_INC_DEC
 	and     ah, 0x3
 	mov     dx, ax
@@ -255,7 +272,7 @@ polyeng:
 	jmp     .cryptor_gen_loop
 .not_reg:
 	sub     r13, 0x2
-	call    rand32
+	rdrand  eax
 	mov     al, PREFIX_NOT_NEG
 	and     ah, 0x3
 	or      ah, OPCODE_NOT_R
@@ -265,7 +282,7 @@ polyeng:
 	jmp     .cryptor_gen_loop
 .neg_reg:
 	sub     r13, 0x2
-	call    rand32
+	rdrand  eax
 	mov     al, PREFIX_NOT_NEG
 	and     ah, 0x3
 	or      ah, OPCODE_NEG_R
@@ -292,7 +309,7 @@ polyeng:
 	mov     edx, [rdi+0x8]
 	mov     ebx, [rdi+0xC]
 .crypt_func:
-	times POLY_FUNC_SIZE db OPCODE_NOP
+	times MKPOLY_FUNC_SIZE db OPCODE_NOP
 	mov     [rdi    ], eax
 	mov     [rdi+0x4], ecx
 	mov     [rdi+0x8], edx
